@@ -29,7 +29,7 @@ func TestServiceAddProfileAndServeManagedYAML(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewConfig() error = %v", err)
 	}
-	cfg.EncryptionKey = []byte("0123456789abcdef0123456789abcdef")
+	cfg.EncryptionKey = []byte("sub2clash-test-key-material-1234")
 	cfg.AdminToken = "test-token"
 	cfg.HTTPRequestTimout = 5 * time.Second
 
