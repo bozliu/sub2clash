@@ -88,8 +88,8 @@ Unsupported schemes are skipped with warnings instead of crashing the conversion
 
 ```bash
 docker run --rm -p 8080:8080 \
-  -e SUB2CLASH_ADMIN_TOKEN='change-me' \
-  -e SUB2CLASH_ENCRYPTION_KEY='0123456789abcdef0123456789abcdef' \
+  -e SUB2CLASH_ADMIN_TOKEN='example-admin-token' \
+  -e SUB2CLASH_ENCRYPTION_KEY='sub2clash-dev-secret-material-01' \
   -e SUB2CLASH_PUBLIC_BASE_URL='http://127.0.0.1:8080' \
   ghcr.io/bozliu/sub2clash:latest
 ```
@@ -130,7 +130,7 @@ go build ./cmd/sub2clash
 
 ```bash
 sub2clash convert \
-  --url 'https://provider.example/api/v1/client/subscribe?token=REDACTED' \
+  --url 'https://provider.example/path/to/your-redacted-subscription-url' \
   --out ./demo-clash.yaml
 ```
 
@@ -139,7 +139,7 @@ sub2clash convert \
 ```bash
 sub2clash profile add \
   --name 'Example Provider' \
-  --url 'https://provider.example/api/v1/client/subscribe?token=REDACTED' \
+  --url 'https://provider.example/path/to/your-redacted-subscription-url' \
   --refresh 24h
 ```
 
@@ -158,8 +158,8 @@ sub2clash profile list
 ### Run the web/API service
 
 ```bash
-SUB2CLASH_ADMIN_TOKEN='change-me' \
-SUB2CLASH_ENCRYPTION_KEY='0123456789abcdef0123456789abcdef' \
+SUB2CLASH_ADMIN_TOKEN='example-admin-token' \
+SUB2CLASH_ENCRYPTION_KEY='sub2clash-dev-secret-material-01' \
 SUB2CLASH_PUBLIC_BASE_URL='http://127.0.0.1:8080' \
 sub2clash serve
 ```
@@ -170,11 +170,11 @@ sub2clash serve
 
 ```bash
 curl -X POST http://127.0.0.1:8080/api/profiles \
-  -H 'Authorization: Bearer change-me' \
+  -H 'Authorization: Bearer example-admin-token' \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "Example Provider",
-    "url": "https://provider.example/api/v1/client/subscribe?token=REDACTED",
+    "url": "https://provider.example/path/to/your-redacted-subscription-url",
     "refresh_interval": "24h"
   }'
 ```
@@ -183,7 +183,7 @@ curl -X POST http://127.0.0.1:8080/api/profiles \
 
 ```bash
 curl -X POST http://127.0.0.1:8080/api/profiles/prf_exampleid/refresh \
-  -H 'Authorization: Bearer change-me'
+  -H 'Authorization: Bearer example-admin-token'
 ```
 
 ### Use the managed Clash URL in Clash Verge

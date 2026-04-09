@@ -1,0 +1,9 @@
+[allowlist]
+description = "Public demo placeholders and test-only fake values"
+regexes = [
+  '''example-admin-token''',
+  '''sub2clash-dev-secret-material-01''',
+  '''sub2clash-test-key-material-1234''',
+  '''token=abc123''',
+  '''your-redacted-subscription-url'''
+]
