@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sub2Clash Admin</title>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; margin: 0; background: #0b1020; color: #e5ecff; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
+    .card { background: #121933; border: 1px solid #2a3568; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+    input, button { border-radius: 10px; border: 1px solid #3c4a85; padding: 12px 14px; font: inherit; }
+    input { width: 100%; background: #0f1530; color: #f8fbff; margin-bottom: 12px; }
+    button { background: #4d72ff; color: white; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    td, th { padding: 10px 8px; border-top: 1px solid #24315f; vertical-align: top; text-align: left; }
+    .muted { color: #9eb0ec; }
+    .mono { font-family: ui-monospace, SFMono-Regular, monospace; word-break: break-all; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .status { margin-top: 10px; min-height: 20px; color: #9ed0ff; }
+    @media (max-width: 860px) { .row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Sub2Clash Admin</h1>
+    <p class="muted">Create managed Clash links from subscription URLs without exposing them in client apps.</p>
+
+    <div class="card">
+      <h2>Admin token</h2>
+      <input id="token" placeholder="Paste SUB2CLASH_ADMIN_TOKEN">
+      <div class="actions">
+        <button onclick="saveToken()">Save token</button>
+        <button onclick="loadProfiles()">Load profiles</button>
+      </div>
+      <div id="token-status" class="status"></div>
+    </div>
+
+    <div class="card">
+      <h2>Create profile</h2>
+      <div class="row">
+        <div>
+          <input id="name" placeholder="Profile name">
+          <input id="refresh" placeholder="Refresh interval, e.g. 24h" value="24h">
+        </div>
+        <div>
+          <input id="url" placeholder="Subscription URL">
+        </div>
+      </div>
+      <div class="actions">
+        <button onclick="createProfile()">Create managed Clash profile</button>
+      </div>
+      <div id="create-status" class="status"></div>
+    </div>
+
+    <div class="card">
+      <h2>Profiles</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Managed link</th>
+            <th>Refresh</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="profiles"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById('token');
+    tokenInput.value = localStorage.getItem('sub2clash-admin-token') || '';
+
+    function saveToken() {
+      localStorage.setItem('sub2clash-admin-token', tokenInput.value.trim());
+      document.getElementById('token-status').textContent = 'Token saved locally in this browser.';
+    }
+
+    async function api(path, options = {}) {
+      const token = tokenInput.value.trim();
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const response = await fetch(path, { ...options, headers });
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+      return data;
+    }
+
+    async function loadProfiles() {
+      try {
+        const data = await api('/api/profiles');
+        const tbody = document.getElementById('profiles');
+        tbody.innerHTML = '';
+        for (const item of data.items || []) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${escapeHtml(item.name)}</td>
+            <td class="mono"><a href="${item.managed_url}" target="_blank">${item.managed_url}</a><br><a href="${item.download_url}" target="_blank">${item.download_url}</a></td>
+            <td>${escapeHtml(item.refresh_interval)}</td>
+            <td>${escapeHtml(item.last_error || 'OK')}<br><span class="muted">${escapeHtml(item.last_success_at || '')}</span></td>
+            <td><button data-id="${item.id}">Refresh</button></td>
+          `;
+          tr.querySelector('button').addEventListener('click', () => refreshProfile(item.id));
+          tbody.appendChild(tr);
+        }
+      } catch (err) {
+        document.getElementById('token-status').textContent = err.message;
+      }
+    }
+
+    async function createProfile() {
+      try {
+        const payload = {
+          name: document.getElementById('name').value.trim(),
+          url: document.getElementById('url').value.trim(),
+          refresh_interval: document.getElementById('refresh').value.trim()
+        };
+        const data = await api('/api/profiles', { method: 'POST', body: JSON.stringify(payload) });
+        document.getElementById('create-status').textContent = `Created ${data.id}`;
+        await loadProfiles();
+      } catch (err) {
+        document.getElementById('create-status').textContent = err.message;
+      }
+    }
+
+    async function refreshProfile(id) {
+      try {
+        await api(`/api/profiles/${id}/refresh`, { method: 'POST' });
+        await loadProfiles();
+      } catch (err) {
+        document.getElementById('token-status').textContent = err.message;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      }[char]));
+    }
+  </script>
+</body>
+</html>

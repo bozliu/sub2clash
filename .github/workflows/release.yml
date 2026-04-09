@@ -1,0 +1,88 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-binaries:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cc: gcc
+            artifact: sub2clash-linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            cc: aarch64-linux-gnu-gcc
+            setup: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+            artifact: sub2clash-linux-arm64
+          - os: macos-13
+            goos: darwin
+            goarch: amd64
+            cc: clang
+            artifact: sub2clash-darwin-amd64
+          - os: macos-14
+            goos: darwin
+            goarch: arm64
+            cc: clang
+            artifact: sub2clash-darwin-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.2'
+      - if: ${{ matrix.setup }}
+        run: ${{ matrix.setup }}
+      - name: Build binary
+        env:
+          CGO_ENABLED: 1
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CC: ${{ matrix.cc }}
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags="-s -w" -o "dist/${{ matrix.artifact }}" ./cmd/sub2clash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build-binaries
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/bozliu/sub2clash:${{ github.ref_name }}
+            ghcr.io/bozliu/sub2clash:latest
+
+  github-release:
+    runs-on: ubuntu-latest
+    needs: build-binaries
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/**/*
